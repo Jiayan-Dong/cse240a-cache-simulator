@@ -194,7 +194,9 @@ icache_access(uint32_t addr)
   else
   {
     icacheMisses++;
-    icachePenalties += l2cache_access(addr);
+    uint32_t access_time = l2cache_access(addr);
+    icachePenalties += access_time;
+    return access_time + icacheHitTime;
   }
 }
 
@@ -216,7 +218,9 @@ dcache_access(uint32_t addr)
   else
   {
     dcacheMisses++;
-    dcachePenalties += l2cache_access(addr);
+    uint32_t access_time = l2cache_access(addr);
+    dcachePenalties += access_time;
+    return access_time + dcacheHitTime;
   }
 }
 
