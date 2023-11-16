@@ -94,6 +94,27 @@ get_msb_index(uint32_t n)
   return index - 1;
 }
 
+void find_remove(uint32_t addr, struct cache_line *cache, uint32_t index_mask, uint8_t index_bit, uint32_t assoc)
+{
+  uint32_t index = (addr >> block_offset_bit) & index_mask;
+  uint32_t tag = addr >> (block_offset_bit + index_bit);
+
+  struct cache_line *p = cache[index].next;
+
+  while (p != NULL)
+  {
+    if (p->tag == tag)
+    {
+      if (p->next != NULL)
+        p->next->prev = p->prev;
+      p->prev->next = p->next;
+      free(p);
+      return;
+    }
+    p = p->next;
+  }
+}
+
 uint8_t
 access_cache(uint32_t addr, struct cache_line *cache, uint32_t index_mask, uint8_t index_bit, uint32_t assoc, uint32_t update, uint32_t pre)
 {
@@ -146,6 +167,14 @@ access_cache(uint32_t addr, struct cache_line *cache, uint32_t index_mask, uint8
   {
     p_prev->prev->next = NULL;
     free(p_prev);
+    if (inclusive)
+    {
+      if (cache == l2cache)
+      {
+        find_remove(addr, icache, icache_index_mask, icache_index_bit, icacheAssoc);
+        find_remove(addr, dcache, dcache_index_mask, dcache_index_bit, dcacheAssoc);
+      }
+    }
   }
 
   p = malloc(sizeof(struct cache_line));
@@ -292,17 +321,21 @@ l2cache_access(uint32_t addr)
   l2cacheRefs++;
   if (access_cache(addr, l2_stream_buffer, 0, 0, stream_buffer_size, 0, 1) == TRUE)
   {
-    l2cache_prefetch(addr + blocksize);
+    if (prefetch)
+      l2cache_prefetch(addr + blocksize);
+
     return l2cacheHitTime;
   }
   if (access_cache(addr, l2cache, l2cache_index_mask, l2cache_index_bit, l2cacheAssoc, 1, 0) == TRUE)
   {
-    l2cache_prefetch(addr + blocksize);
+    if (prefetch)
+      l2cache_prefetch(addr + blocksize);
     return l2cacheHitTime;
   }
   else
   {
-    l2cache_prefetch(addr + blocksize);
+    if (prefetch)
+      l2cache_prefetch(addr + blocksize);
     l2cacheMisses++;
     l2cachePenalties += memspeed;
     return memspeed + l2cacheHitTime;
