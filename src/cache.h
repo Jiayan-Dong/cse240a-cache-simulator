@@ -74,6 +74,8 @@ extern uint64_t other_miss;
 //
 void init_cache();
 
+void clean_cache();
+
 // Perform a memory access through the icache interface for the address 'addr'
 // Return the access time for the memory operation
 //
@@ -92,11 +94,5 @@ uint32_t l2cache_access(uint32_t addr);
 void icache_prefetch(uint32_t addr);
 
 void dcache_prefetch(uint32_t addr);
-
-void l2cache_prefetch(uint32_t addr);
-
-uint32_t icache_prefetch_addr(uint32_t addr);
-
-uint32_t dcache_prefetch_addr(uint32_t addr);
 
 #endif

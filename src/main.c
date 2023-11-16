@@ -236,11 +236,11 @@ main(int argc, char *argv[])
     if (i_or_d == 'I') {
       totalPenalties += icache_access(addr);
       if(prefetch == TRUE)
-        icache_prefetch(icache_prefetch_addr(addr));
+        icache_prefetch(addr);
     } else if (i_or_d == 'D') {
       totalPenalties += dcache_access(addr);
       if(prefetch == TRUE)
-        dcache_prefetch(dcache_prefetch_addr(addr));
+        dcache_prefetch(addr);
     } else {
       fprintf(stderr,"Input Error '%c' must be either 'I' or 'D'\n", i_or_d);
       exit(1);
@@ -261,6 +261,7 @@ main(int argc, char *argv[])
   }
 
   // Cleanup
+  clean_cache();
   fclose(stream);
   free(buf);
 
