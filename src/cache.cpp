@@ -6,7 +6,7 @@
 //  described in the README                               //
 //========================================================//
 
-#include "cache.h"
+#include "cache.hpp"
 #include "stdio.h"
 
 //

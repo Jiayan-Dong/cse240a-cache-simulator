@@ -4,11 +4,11 @@ OPTS=-g -Werror
 all: main.o cache.o
 	$(CC) $(OPTS) -O3 -o cache main.o cache.o -lm
 
-main.o: main.c cache.h
-	$(CC) $(OPTS) -O3 -c main.c
+main.o: main.cpp cache.hpp
+	$(CC) $(OPTS) -O3 -c main.cpp
 
-cache.o: cache.h cache.c
-	$(CC) $(OPTS) -O3 -c cache.c
+cache.o: cache.hpp cache.cpp
+	$(CC) $(OPTS) -O3 -c cache.cpp
 
 clean:
 	rm -f *.o cache;

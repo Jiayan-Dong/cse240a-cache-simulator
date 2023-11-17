@@ -1,5 +1,3 @@
 src/*.o
 src/cache
 .vscode/*
-src/.vscode/*
-src/insertsort.txt

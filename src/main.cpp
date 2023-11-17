@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "cache.h"
+#include "cache.hpp"
 
 FILE *stream;
 char *buf = NULL;
