@@ -94,27 +94,6 @@ get_msb_index(uint32_t n)
   return index - 1;
 }
 
-void find_remove(uint32_t addr, struct cache_line *cache, uint32_t index_mask, uint8_t index_bit, uint32_t assoc)
-{
-  uint32_t index = (addr >> block_offset_bit) & index_mask;
-  uint32_t tag = addr >> (block_offset_bit + index_bit);
-
-  struct cache_line *p = cache[index].next;
-
-  while (p != NULL)
-  {
-    if (p->tag == tag)
-    {
-      if (p->next != NULL)
-        p->next->prev = p->prev;
-      p->prev->next = p->next;
-      free(p);
-      return;
-    }
-    p = p->next;
-  }
-}
-
 uint8_t
 access_cache(uint32_t addr, struct cache_line *cache, uint32_t index_mask, uint8_t index_bit, uint32_t assoc, uint32_t update, uint32_t pre)
 {
@@ -167,17 +146,9 @@ access_cache(uint32_t addr, struct cache_line *cache, uint32_t index_mask, uint8
   {
     p_prev->prev->next = NULL;
     free(p_prev);
-    if (inclusive)
-    {
-      if (cache == l2cache)
-      {
-        find_remove(addr, icache, icache_index_mask, icache_index_bit, icacheAssoc);
-        find_remove(addr, dcache, dcache_index_mask, dcache_index_bit, dcacheAssoc);
-      }
-    }
   }
 
-  p = malloc(sizeof(struct cache_line));
+  p = (struct cache_line*) malloc(sizeof(struct cache_line));
   p->tag = tag;
   p->next = cache[index].next;
   if (cache[index].next)
@@ -189,13 +160,6 @@ access_cache(uint32_t addr, struct cache_line *cache, uint32_t index_mask, uint8
 
   return FALSE;
 }
-
-struct cache_line *i_stream_buffer;
-struct cache_line *d_stream_buffer;
-struct cache_line *l2_stream_buffer;
-
-uint32_t stream_buffer_size = 4;
-
 //------------------------------------//
 //          Cache Functions           //
 //------------------------------------//
@@ -227,22 +191,34 @@ void init_cache()
   l2cache_index_bit = get_msb_index(l2cacheSets);
   block_offset_bit = get_msb_index(blocksize);
 
-  icache = calloc(icacheSets, sizeof(struct cache_line));
-  dcache = calloc(dcacheSets, sizeof(struct cache_line));
-  l2cache = calloc(l2cacheSets, sizeof(struct cache_line));
+  icache = (struct cache_line*) calloc(icacheSets, sizeof(struct cache_line));
+  dcache = (struct cache_line*) calloc(dcacheSets, sizeof(struct cache_line));
+  l2cache = (struct cache_line*) calloc(l2cacheSets, sizeof(struct cache_line));
+}
 
-  i_stream_buffer = calloc(1, sizeof(struct cache_line));
-  d_stream_buffer = calloc(1, sizeof(struct cache_line));
-  l2_stream_buffer = calloc(1, sizeof(struct cache_line));
+void
+free_cache(struct cache_line *cache, uint32_t cacheSets)
+{
+  for(uint32_t i = 0; i < cacheSets; i++)
+  {
+    struct cache_line* p = cache[i].next;
+    while(p != NULL)
+    {
+      struct cache_line* p_tmp = p->next;
+      free(p);
+      p = p_tmp;
+    }
+  }
+  free(cache);
 }
 
 // Clean Up the Cache Hierarchy
 //
 void clean_cache()
 {
-  //
-  // TODO: Clean Up Cache Simulator Data Structures
-  //
+  free_cache(icache, icacheSets);
+  free_cache(dcache, dcacheSets);
+  free_cache(l2cache, l2cacheSets);
 }
 
 // Perform a memory access through the icache interface for the address 'addr'
@@ -256,10 +232,6 @@ icache_access(uint32_t addr)
     return l2cache_access(addr);
   }
   icacheRefs++;
-  if (access_cache(addr, i_stream_buffer, 0, 0, stream_buffer_size, 0, 1) == TRUE)
-  {
-    return icacheHitTime;
-  }
   if (access_cache(addr, icache, icache_index_mask, icache_index_bit, icacheAssoc, 1, 0) == TRUE)
   {
     return icacheHitTime;
@@ -284,10 +256,6 @@ dcache_access(uint32_t addr)
     return l2cache_access(addr);
   }
   dcacheRefs++;
-  if (access_cache(addr, d_stream_buffer, 0, 0, stream_buffer_size, 0, 1) == TRUE)
-  {
-    return dcacheHitTime;
-  }
   if (access_cache(addr, dcache, dcache_index_mask, dcache_index_bit, dcacheAssoc, 1, 0) == TRUE)
   {
     return dcacheHitTime;
@@ -301,13 +269,6 @@ dcache_access(uint32_t addr)
   }
 }
 
-void l2cache_prefetch(uint32_t addr)
-{
-  if (l2cacheSets == 0)
-    return;
-  access_cache(addr + blocksize, l2_stream_buffer, 0, 0, stream_buffer_size, 1, 1);
-}
-
 // Perform a memory access to the l2cache for the address 'addr'
 // Return the access time for the memory operation
 //
@@ -319,27 +280,28 @@ l2cache_access(uint32_t addr)
     return memspeed;
   }
   l2cacheRefs++;
-  if (access_cache(addr, l2_stream_buffer, 0, 0, stream_buffer_size, 0, 1) == TRUE)
-  {
-    if (prefetch)
-      l2cache_prefetch(addr + blocksize);
-
-    return l2cacheHitTime;
-  }
   if (access_cache(addr, l2cache, l2cache_index_mask, l2cache_index_bit, l2cacheAssoc, 1, 0) == TRUE)
   {
-    if (prefetch)
-      l2cache_prefetch(addr + blocksize);
     return l2cacheHitTime;
   }
   else
   {
-    if (prefetch)
-      l2cache_prefetch(addr + blocksize);
     l2cacheMisses++;
     l2cachePenalties += memspeed;
     return memspeed + l2cacheHitTime;
   }
+}
+
+uint32_t
+icache_prefetch_addr(uint32_t pc, uint32_t addr, char i_or_d, char r_or_w)
+{
+  return addr + blocksize;
+}
+
+uint32_t
+dcache_prefetch_addr(uint32_t pc, uint32_t addr, char i_or_d, char r_or_w)
+{
+  return addr + blocksize;
 }
 
 void icache_prefetch(uint32_t addr)
@@ -349,7 +311,7 @@ void icache_prefetch(uint32_t addr)
     return;
   }
 
-  access_cache(addr + blocksize, i_stream_buffer, 0, 0, stream_buffer_size, 1, 1);
+  access_cache(addr, icache, icache_index_mask, icache_index_bit, icacheAssoc, 1, 1);
 }
 
 void dcache_prefetch(uint32_t addr)
@@ -359,5 +321,5 @@ void dcache_prefetch(uint32_t addr)
     return;
   }
 
-  access_cache(addr + blocksize, d_stream_buffer, 0, 0, stream_buffer_size, 1, 1);
+  access_cache(addr, dcache, dcache_index_mask, dcache_index_bit, dcacheAssoc, 1, 1);
 }

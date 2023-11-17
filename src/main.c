@@ -4,7 +4,6 @@
 //  Main entry point for the Cache lab                    //
 //========================================================//
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -187,13 +186,13 @@ set_defaults()
 // Returns True if Successful 
 //
 int
-read_mem_access(uint32_t *addr, char *i_or_d)
+read_mem_access(uint32_t *pc, uint32_t *addr, char *i_or_d, char *r_or_w)
 {
   if (getline(&buf, &len, stream) == -1) {
     return 0;
   }
 
-  sscanf(buf,"0x%x %c\n",addr,i_or_d);
+  sscanf(buf,"0x%x\t0x%x\t%c\t%c\n", pc, addr, i_or_d, r_or_w);
 
   return 1;
 }
@@ -226,21 +225,23 @@ main(int argc, char *argv[])
 
   uint64_t totalRefs = 0;
   uint64_t totalPenalties = 0;
+  uint32_t pc = 0;
   uint32_t addr = 0;
   char i_or_d = '\0';
+  char r_or_w = '\0';
 
   // Read each memory access from the trace
-  while (read_mem_access(&addr, &i_or_d)) {
+  while (read_mem_access(&pc, &addr, &i_or_d, &r_or_w)) {
     totalRefs++;
     // Direct the memory access to the appropriate cache
     if (i_or_d == 'I') {
       totalPenalties += icache_access(addr);
       if(prefetch == TRUE)
-        icache_prefetch(addr);
+        icache_prefetch(icache_prefetch_addr(pc, addr, i_or_d, r_or_w));
     } else if (i_or_d == 'D') {
       totalPenalties += dcache_access(addr);
       if(prefetch == TRUE)
-        dcache_prefetch(addr);
+        dcache_prefetch(dcache_prefetch_addr(pc, addr, i_or_d, r_or_w));
     } else {
       fprintf(stderr,"Input Error '%c' must be either 'I' or 'D'\n", i_or_d);
       exit(1);

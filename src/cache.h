@@ -91,6 +91,10 @@ uint32_t dcache_access(uint32_t addr);
 //
 uint32_t l2cache_access(uint32_t addr);
 
+uint32_t icache_prefetch_addr(uint32_t pc, uint32_t addr, char i_or_d, char r_or_w);
+
+uint32_t dcache_prefetch_addr(uint32_t pc, uint32_t addr, char i_or_d, char r_or_w);
+
 void icache_prefetch(uint32_t addr);
 
 void dcache_prefetch(uint32_t addr);
